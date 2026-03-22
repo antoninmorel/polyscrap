@@ -9,7 +9,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@hk/polymarket": "npm:@jsr/hk__polymarket",
+    "@effect/platform": "^0.96.0",
     "effect": "^3.21.0"
   }
 }

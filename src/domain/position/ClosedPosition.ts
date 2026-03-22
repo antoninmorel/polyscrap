@@ -1,6 +1,6 @@
-import { Schema } from "effect"
-import { ConditionId } from "./ConditionId"
-import { USDAmount } from "../shared/types"
+import { Schema } from "effect";
+import { USDAmount } from "../shared/types";
+import { ConditionId } from "./ConditionId";
 
 export const ClosedPosition = Schema.Struct({
   conditionId: ConditionId,
@@ -12,7 +12,7 @@ export const ClosedPosition = Schema.Struct({
   totalBought: USDAmount,
   realizedPnl: USDAmount,
   curPrice: Schema.Number,
-  closedAt: Schema.Date
-})
+  closedAt: Schema.DateFromNumber,
+});
 
-export type ClosedPosition = typeof ClosedPosition.Type
+export type ClosedPosition = typeof ClosedPosition.Type;

@@ -5,7 +5,7 @@ import { ActivityType, TradeSide } from "./types"
 
 export const Activity = Schema.Struct({
   type: ActivityType,
-  timestamp: Schema.Date,
+  timestamp: Schema.DateFromNumber,
   conditionId: ConditionId,
   size: Schema.Number,
   usdcSize: USDAmount,
