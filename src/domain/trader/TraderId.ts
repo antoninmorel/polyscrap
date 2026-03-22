@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from "effect";
 
-export const TraderId = Schema.String.pipe(Schema.brand("TraderId"))
-export type TraderId = typeof TraderId.Type
+export const TraderId = Schema.String.pipe(Schema.brand("TraderId"));
+export type TraderId = typeof TraderId.Type;

@@ -39,7 +39,7 @@ const make = Effect.gen(function* () {
 
   // Fetch closed positions from API
   const fetchClosedPositions = (
-    key: ClosedPositionsCacheKey
+    key: ClosedPositionsCacheKey,
   ): Effect.Effect<ReadonlyArray<ClosedPosition>, TraderRepositoryError> =>
     httpClient
       .get(
@@ -47,7 +47,7 @@ const make = Effect.gen(function* () {
           user: key.traderId,
           limit: key.limit,
           offset: key.offset,
-        })
+        }),
       )
       .pipe(
         Effect.flatMap((response) => response.json),
@@ -56,21 +56,21 @@ const make = Effect.gen(function* () {
         Effect.mapError(
           TraderRepositoryError.fromCause(
             key.traderId as TraderId,
-            `Failed to fetch closed positions for ${key.traderId}`
-          )
-        )
+            `Failed to fetch closed positions for ${key.traderId}`,
+          ),
+        ),
       );
 
   // Fetch activity from API
   const fetchActivity = (
-    key: ActivityCacheKey
+    key: ActivityCacheKey,
   ): Effect.Effect<ReadonlyArray<Activity>, TraderRepositoryError> =>
     httpClient
       .get(
         buildUrl(config.baseUrl, "/activity", {
           user: key.traderId,
           limit: key.limit,
-        })
+        }),
       )
       .pipe(
         Effect.flatMap((response) => response.json),
@@ -79,20 +79,20 @@ const make = Effect.gen(function* () {
         Effect.mapError(
           TraderRepositoryError.fromCause(
             key.traderId as TraderId,
-            `Failed to fetch activity for ${key.traderId}`
-          )
-        )
+            `Failed to fetch activity for ${key.traderId}`,
+          ),
+        ),
       );
 
   // Fetch total markets traded from API
   const fetchTotalMarketsTraded = (
-    key: TradedCacheKey
+    key: TradedCacheKey,
   ): Effect.Effect<number, TraderRepositoryError> =>
     httpClient
       .get(
         buildUrl(config.baseUrl, "/traded", {
           user: key.traderId,
-        })
+        }),
       )
       .pipe(
         Effect.flatMap((response) => response.json),
@@ -102,9 +102,9 @@ const make = Effect.gen(function* () {
         Effect.mapError(
           TraderRepositoryError.fromCause(
             key.traderId as TraderId,
-            `Failed to fetch total markets traded for ${key.traderId}`
-          )
-        )
+            `Failed to fetch total markets traded for ${key.traderId}`,
+          ),
+        ),
       );
 
   // Create caches
@@ -129,31 +129,30 @@ const make = Effect.gen(function* () {
   // Repository methods
   const getClosedPositions = (
     traderId: TraderId,
-    options: ClosedPositionsQueryOptions = {}
+    options: ClosedPositionsQueryOptions = {},
   ): Effect.Effect<ReadonlyArray<ClosedPosition>, TraderRepositoryError> =>
     closedPositionsCache.get(
       ClosedPositionsCacheKey({
         traderId,
         limit: options.limit ?? 50,
         offset: options.offset ?? 0,
-      })
+      }),
     );
 
   const getActivity = (
     traderId: TraderId,
-    options: ActivityQueryOptions = {}
+    options: ActivityQueryOptions = {},
   ): Effect.Effect<ReadonlyArray<Activity>, TraderRepositoryError> =>
     activityCache.get(
       ActivityCacheKey({
         traderId,
         limit: options.limit ?? 500,
-      })
+      }),
     );
 
   const getTotalMarketsTraded = (
-    traderId: TraderId
-  ): Effect.Effect<number, TraderRepositoryError> =>
-    tradedCache.get(TradedCacheKey({ traderId }));
+    traderId: TraderId,
+  ): Effect.Effect<number, TraderRepositoryError> => tradedCache.get(TradedCacheKey({ traderId }));
 
   return TraderRepository.of({
     getClosedPositions,
@@ -162,7 +161,7 @@ const make = Effect.gen(function* () {
   });
 });
 
-export const PolymarketTraderRepositoryLive = Layer.effect(
-  TraderRepository,
-  make
-).pipe(Layer.provide(FetchHttpClient.layer), Layer.provide(DataApiConfigLive));
+export const PolymarketTraderRepositoryLive = Layer.effect(TraderRepository, make).pipe(
+  Layer.provide(FetchHttpClient.layer),
+  Layer.provide(DataApiConfigLive),
+);

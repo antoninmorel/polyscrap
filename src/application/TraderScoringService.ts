@@ -30,11 +30,11 @@ export interface ScoringWeights {
 }
 
 export const defaultWeights: ScoringWeights = {
-  roi: 0.30,
+  roi: 0.3,
   winRate: 0.25,
-  consistency: 0.20,
+  consistency: 0.2,
   volume: 0.15,
-  recentActivity: 0.10,
+  recentActivity: 0.1,
 };
 
 /**
@@ -68,10 +68,10 @@ const normalize = (value: number, min: number, max: number): number => {
 const calculateRecencyScore = (lastActiveAt: Date): number => {
   const now = new Date();
   const daysSinceActive = (now.getTime() - lastActiveAt.getTime()) / (1000 * 60 * 60 * 24);
-  
+
   if (daysSinceActive <= 1) return 100;
   if (daysSinceActive >= 30) return 0;
-  
+
   // Linear decay from 100 to 0 over 30 days
   return Math.max(0, 100 - (daysSinceActive / 30) * 100);
 };
@@ -79,14 +79,12 @@ const calculateRecencyScore = (lastActiveAt: Date): number => {
 /**
  * Build a Trader from LeaderboardEntry and their closed positions
  */
-const buildTrader = (
-  entry: LeaderboardEntry,
-  positions: ReadonlyArray<ClosedPosition>
-): Trader => {
+const buildTrader = (entry: LeaderboardEntry, positions: ReadonlyArray<ClosedPosition>): Trader => {
   // Get last active date from most recent position
-  const lastActiveAt = positions.length > 0
-    ? new Date(Math.max(...positions.map(p => p.closedAt.getTime())))
-    : new Date();
+  const lastActiveAt =
+    positions.length > 0
+      ? new Date(Math.max(...positions.map((p) => p.closedAt.getTime())))
+      : new Date();
 
   const metrics = MetricsCalculator.calculateMetrics(positions, lastActiveAt);
 
@@ -102,12 +100,8 @@ const buildTrader = (
  * Fetch trader details and build Trader from LeaderboardEntry
  */
 const fetchTraderDetails = (
-  entry: LeaderboardEntry
-): Effect.Effect<
-  Trader,
-  TraderRepositoryError | InsufficientDataError,
-  TraderRepository
-> =>
+  entry: LeaderboardEntry,
+): Effect.Effect<Trader, TraderRepositoryError | InsufficientDataError, TraderRepository> =>
   Effect.gen(function* () {
     const traderRepo = yield* TraderRepository;
 
@@ -124,7 +118,7 @@ const fetchTraderDetails = (
           reason: "Not enough trades",
           actual: positions.length,
           required: MIN_TRADES,
-        })
+        }),
       );
     }
 
@@ -136,7 +130,7 @@ const fetchTraderDetails = (
           reason: "Insufficient volume",
           actual: totalVolume,
           required: MIN_VOLUME,
-        })
+        }),
       );
     }
 
@@ -149,7 +143,7 @@ const fetchTraderDetails = (
 const calculateScores = (
   trader: Trader,
   allMetrics: ReadonlyArray<TraderMetrics>,
-  weights: ScoringWeights
+  weights: ScoringWeights,
 ): ScoredTrader => {
   const metrics = trader.metrics;
 
@@ -165,7 +159,7 @@ const calculateScores = (
   const volumeScore = normalize(
     Math.log(metrics.totalVolume + 1), // Log scale for volume
     Math.log(Math.min(...volumes) + 1),
-    Math.log(Math.max(...volumes) + 1)
+    Math.log(Math.max(...volumes) + 1),
   );
   const recencyScore = calculateRecencyScore(metrics.lastActiveAt);
 
@@ -196,7 +190,7 @@ const calculateScores = (
 export const findBestTraders = (
   options: LeaderboardQueryOptions = {},
   weights: ScoringWeights = defaultWeights,
-  maxTraders: number = 10
+  maxTraders: number = 10,
 ): Effect.Effect<
   ReadonlyArray<ScoredTrader>,
   LeaderboardRepositoryError | TraderRepositoryError,
@@ -220,9 +214,9 @@ export const findBestTraders = (
           Effect.catchTag("InsufficientDataError", (err) => {
             // Log the skip for visibility
             return Effect.succeed(Option.none<Trader>());
-          })
+          }),
         ),
-      { concurrency: 5 } // Limit concurrent requests
+      { concurrency: 5 }, // Limit concurrent requests
     );
 
     // Filter out None values
@@ -234,14 +228,12 @@ export const findBestTraders = (
 
     // Calculate scores for all traders
     const allMetrics = traders.map((t) => t.metrics);
-    const scoredTraders = traders.map((t) =>
-      calculateScores(t, allMetrics, weights)
-    );
+    const scoredTraders = traders.map((t) => calculateScores(t, allMetrics, weights));
 
     // Sort by composite score descending and take top N
     const sorted = Arr.sort(
       scoredTraders,
-      Order.reverse(Order.mapInput(Order.number, (st: ScoredTrader) => st.compositeScore))
+      Order.reverse(Order.mapInput(Order.number, (st: ScoredTrader) => st.compositeScore)),
     );
 
     return Arr.take(sorted, maxTraders);
@@ -251,7 +243,7 @@ export const findBestTraders = (
  * Get detailed analysis for a specific trader
  */
 export const analyzeTrader = (
-  traderId: TraderId
+  traderId: TraderId,
 ): Effect.Effect<
   { trader: Trader; positions: ReadonlyArray<ClosedPosition> },
   TraderRepositoryError | InsufficientDataError,
@@ -271,7 +263,7 @@ export const analyzeTrader = (
           reason: "Not enough trades",
           actual: positions.length,
           required: MIN_TRADES,
-        })
+        }),
       );
     }
 

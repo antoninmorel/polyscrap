@@ -1,5 +1,5 @@
-import { Schema } from "effect"
-import { Percentage, USDAmount } from "../shared/types"
+import { Schema } from "effect";
+import { Percentage, USDAmount } from "../shared/types";
 
 export const TraderMetrics = Schema.Struct({
   roi: Percentage,
@@ -9,7 +9,7 @@ export const TraderMetrics = Schema.Struct({
   realizedPnl: USDAmount,
   consistency: Schema.Number,
   avgTradeSize: USDAmount,
-  lastActiveAt: Schema.Date
-})
+  lastActiveAt: Schema.Date,
+});
 
-export type TraderMetrics = typeof TraderMetrics.Type
+export type TraderMetrics = typeof TraderMetrics.Type;

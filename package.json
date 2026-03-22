@@ -1,15 +1,19 @@
 {
   "name": "polyscrap",
-  "module": "index.ts",
   "type": "module",
+  "module": "index.ts",
+  "scripts": {
+    "find-traders": "npx tsx src/presentation/findBestTraders.ts"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.96.0",
+    "effect": "^3.21.0",
+    "oxfmt": "^0.41.0"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "@effect/platform": "^0.96.0",
-    "effect": "^3.21.0"
   }
 }
