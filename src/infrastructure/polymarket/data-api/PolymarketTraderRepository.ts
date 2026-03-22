@@ -1,7 +1,7 @@
 import { FetchHttpClient, HttpClient } from "@effect/platform";
 import { Cache, Data, Effect, Layer, Schema } from "effect";
-import { Activity } from "../../../domain/position/Activity";
-import { ClosedPosition } from "../../../domain/position/ClosedPosition";
+import type { Activity } from "../../../domain/position/Activity";
+import type { ClosedPosition } from "../../../domain/position/ClosedPosition";
 import { TraderRepositoryError } from "../../../domain/trader/errors";
 import type { TraderId } from "../../../domain/trader/TraderId";
 import {
@@ -10,6 +10,8 @@ import {
   type ClosedPositionsQueryOptions,
 } from "../../../domain/trader/TraderRepository";
 import { DataApiConfig, DataApiConfigLive } from "./DataApiConfig";
+import { ActivityApiResponse } from "./schemas/ActivityFromApi";
+import { ClosedPositionApiResponse } from "./schemas/ClosedPositionFromApi";
 import { TradedApiResponse } from "./schemas/TradedFromApi";
 import { buildUrl } from "./utils";
 
@@ -51,7 +53,7 @@ const make = Effect.gen(function* () {
       )
       .pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknown(Schema.Array(ClosedPosition))),
+        Effect.flatMap(Schema.decodeUnknown(ClosedPositionApiResponse)),
         Effect.timeout(config.timeoutMs),
         Effect.mapError(
           TraderRepositoryError.fromCause(
@@ -74,7 +76,7 @@ const make = Effect.gen(function* () {
       )
       .pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknown(Schema.Array(Activity))),
+        Effect.flatMap(Schema.decodeUnknown(ActivityApiResponse)),
         Effect.timeout(config.timeoutMs),
         Effect.mapError(
           TraderRepositoryError.fromCause(
