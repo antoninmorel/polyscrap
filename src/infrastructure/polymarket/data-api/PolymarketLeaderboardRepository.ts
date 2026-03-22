@@ -1,12 +1,13 @@
 import { FetchHttpClient, HttpClient } from "@effect/platform";
-import { Cache, Console, Data, Effect, Layer, Schema } from "effect";
-import { LeaderboardEntry } from "../../../domain/leaderboard/LeaderboardEntry";
+import { Cache, Data, Effect, Layer, Schema } from "effect";
+import type { LeaderboardEntry } from "../../../domain/leaderboard/LeaderboardEntry";
 import {
   LeaderboardRepository,
   type LeaderboardQueryOptions,
 } from "../../../domain/leaderboard/LeaderboardRepository";
 import { LeaderboardRepositoryError } from "../../../domain/leaderboard/errors";
 import { DataApiConfig, DataApiConfigLive } from "./DataApiConfig";
+import { LeaderboardApiResponse } from "./schemas/LeaderboardEntryFromApi";
 import { buildUrl } from "./utils";
 
 // Cache key using Data.case for proper structural equality
@@ -25,8 +26,11 @@ const make = Effect.gen(function* () {
   const httpClient = yield* HttpClient.HttpClient;
 
   const fetchLeaderboard = (
-    key: LeaderboardCacheKey,
-  ): Effect.Effect<ReadonlyArray<LeaderboardEntry>, LeaderboardRepositoryError> =>
+    key: LeaderboardCacheKey
+  ): Effect.Effect<
+    ReadonlyArray<LeaderboardEntry>,
+    LeaderboardRepositoryError
+  > =>
     httpClient
       .get(
         buildUrl(config.baseUrl, "/v1/leaderboard", {
@@ -35,13 +39,15 @@ const make = Effect.gen(function* () {
           orderBy: key.orderBy,
           limit: key.limit,
           offset: key.offset,
-        }),
+        })
       )
       .pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknown(Schema.Array(LeaderboardEntry))),
+        Effect.flatMap(Schema.decodeUnknown(LeaderboardApiResponse)),
         Effect.timeout(config.timeoutMs),
-        Effect.mapError(LeaderboardRepositoryError.fromCause("Failed to fetch leaderboard")),
+        Effect.mapError(
+          LeaderboardRepositoryError.fromCause("Failed to fetch leaderboard")
+        )
       );
 
   const cache = yield* Cache.make({
@@ -51,8 +57,11 @@ const make = Effect.gen(function* () {
   });
 
   const getLeaderboard = (
-    options: LeaderboardQueryOptions = {},
-  ): Effect.Effect<ReadonlyArray<LeaderboardEntry>, LeaderboardRepositoryError> =>
+    options: LeaderboardQueryOptions = {}
+  ): Effect.Effect<
+    ReadonlyArray<LeaderboardEntry>,
+    LeaderboardRepositoryError
+  > =>
     cache.get(
       LeaderboardCacheKey({
         category: options.category ?? "OVERALL",
@@ -60,13 +69,13 @@ const make = Effect.gen(function* () {
         orderBy: options.orderBy ?? "PNL",
         limit: options.limit ?? 25,
         offset: options.offset ?? 0,
-      }),
+      })
     );
 
   return LeaderboardRepository.of({ getLeaderboard });
 });
 
-export const PolymarketLeaderboardRepositoryLive = Layer.effect(LeaderboardRepository, make).pipe(
-  Layer.provide(FetchHttpClient.layer),
-  Layer.provide(DataApiConfigLive),
-);
+export const PolymarketLeaderboardRepositoryLive = Layer.effect(
+  LeaderboardRepository,
+  make
+).pipe(Layer.provide(FetchHttpClient.layer), Layer.provide(DataApiConfigLive));
