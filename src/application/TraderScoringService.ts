@@ -1,4 +1,4 @@
-import { Effect, Option, Order, Array as Arr } from "effect";
+import { Array, DateTime, Duration, Effect, flow, Number, Option, Order, pipe } from "effect";
 import type { LeaderboardEntry } from "../domain/leaderboard/LeaderboardEntry";
 import {
   LeaderboardRepository,
@@ -6,12 +6,12 @@ import {
 } from "../domain/leaderboard/LeaderboardRepository";
 import type { LeaderboardRepositoryError } from "../domain/leaderboard/errors";
 import type { ClosedPosition } from "../domain/position/ClosedPosition";
-import type { Trader } from "../domain/trader/Trader";
-import { InsufficientDataError, TraderRepositoryError } from "../domain/trader/errors";
 import * as MetricsCalculator from "../domain/trader/MetricsCalculator";
+import type { Trader } from "../domain/trader/Trader";
 import type { TraderId } from "../domain/trader/TraderId";
-import { TraderRepository } from "../domain/trader/TraderRepository";
 import type { TraderMetrics } from "../domain/trader/TraderMetrics";
+import { TraderRepository } from "../domain/trader/TraderRepository";
+import { InsufficientDataError, TraderRepositoryError } from "../domain/trader/errors";
 
 // Minimum requirements for a trader to be considered
 const MIN_TRADES = 10;
@@ -57,7 +57,7 @@ export interface ScoredTrader {
  */
 const normalize = (value: number, min: number, max: number): number => {
   if (max === min) return 50; // Default to middle if no variance
-  return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  return Number.clamp({ minimum: 0, maximum: 100 })(((value - min) / (max - min)) * 100);
 };
 
 /**
@@ -65,36 +65,47 @@ const normalize = (value: number, min: number, max: number): number => {
  * More recent activity = higher score
  * Decays over 30 days to 0
  */
-const calculateRecencyScore = (lastActiveAt: Date): number => {
-  const now = new Date();
-  const daysSinceActive = (now.getTime() - lastActiveAt.getTime()) / (1000 * 60 * 60 * 24);
+const calculateRecencyScore = (lastActiveAt: Date) =>
+  Effect.gen(function* () {
+    const now = yield* DateTime.now;
+    const lastActive = yield* DateTime.make(lastActiveAt).pipe(
+      Effect.orDieWith(() => "Invalid last active date"),
+    );
 
-  if (daysSinceActive <= 1) return 100;
-  if (daysSinceActive >= 30) return 0;
+    const daysSinceActive = DateTime.distanceDuration(now, lastActive).pipe(Duration.toDays);
 
-  // Linear decay from 100 to 0 over 30 days
-  return Math.max(0, 100 - (daysSinceActive / 30) * 100);
-};
+    if (daysSinceActive <= 1) return 100;
+    if (daysSinceActive >= 30) return 0;
+
+    // Linear decay from 100 to 0 over 30 days
+    return Math.max(0, 100 - (daysSinceActive / 30) * 100);
+  });
 
 /**
  * Build a Trader from LeaderboardEntry and their closed positions
  */
-const buildTrader = (entry: LeaderboardEntry, positions: ReadonlyArray<ClosedPosition>): Trader => {
-  // Get last active date from most recent position
-  const lastActiveAt =
-    positions.length > 0
-      ? new Date(Math.max(...positions.map((p) => p.closedAt.getTime())))
-      : new Date();
+const buildTrader = (entry: LeaderboardEntry, positions: ReadonlyArray<ClosedPosition>) =>
+  Effect.gen(function* () {
+    // Get last active date from most recent position
+    const lastActiveAt = yield* Array.match(positions, {
+      onEmpty: () => DateTime.nowAsDate,
+      onNonEmpty: (nonEmptyPositions) =>
+        pipe(
+          nonEmptyPositions,
+          Array.map((p) => p.closedAt),
+          Array.max(Order.Date),
+          Effect.succeed,
+        ),
+    });
 
-  const metrics = MetricsCalculator.calculateMetrics(positions, lastActiveAt);
+    const metrics = MetricsCalculator.calculateMetrics(positions, lastActiveAt);
 
-  return {
-    id: entry.traderId,
-    username: entry.username,
-    profileImage: entry.profileImage,
-    metrics,
-  };
-};
+    return {
+      id: entry.traderId,
+      username: entry.username,
+      metrics,
+    };
+  });
 
 /**
  * Fetch trader details and build Trader from LeaderboardEntry
@@ -112,29 +123,25 @@ const fetchTraderDetails = (
 
     // Check minimum requirements
     if (positions.length < MIN_TRADES) {
-      return yield* Effect.fail(
-        new InsufficientDataError({
-          traderId: entry.traderId,
-          reason: "Not enough trades",
-          actual: positions.length,
-          required: MIN_TRADES,
-        }),
-      );
+      return yield* new InsufficientDataError({
+        traderId: entry.traderId,
+        reason: "Not enough trades",
+        actual: positions.length,
+        required: MIN_TRADES,
+      });
     }
 
     const totalVolume = positions.reduce((sum, p) => sum + p.totalBought, 0);
     if (totalVolume < MIN_VOLUME) {
-      return yield* Effect.fail(
-        new InsufficientDataError({
-          traderId: entry.traderId,
-          reason: "Insufficient volume",
-          actual: totalVolume,
-          required: MIN_VOLUME,
-        }),
-      );
+      return yield* new InsufficientDataError({
+        traderId: entry.traderId,
+        reason: "Insufficient volume",
+        actual: totalVolume,
+        required: MIN_VOLUME,
+      });
     }
 
-    return buildTrader(entry, positions);
+    return yield* buildTrader(entry, positions);
   });
 
 /**
@@ -144,45 +151,46 @@ const calculateScores = (
   trader: Trader,
   allMetrics: ReadonlyArray<TraderMetrics>,
   weights: ScoringWeights,
-): ScoredTrader => {
-  const metrics = trader.metrics;
+) =>
+  Effect.gen(function* () {
+    const metrics = trader.metrics;
 
-  // Get min/max for normalization across all traders
-  const rois = allMetrics.map((m) => m.roi);
-  const winRates = allMetrics.map((m) => m.winRate);
-  const volumes = allMetrics.map((m) => m.totalVolume);
+    // Get min/max for normalization across all traders
+    const rois = allMetrics.map((m) => m.roi);
+    const winRates = allMetrics.map((m) => m.winRate);
+    const volumes = allMetrics.map((m) => m.totalVolume);
 
-  // Normalize individual scores
-  const roiScore = normalize(metrics.roi, Math.min(...rois), Math.max(...rois));
-  const winRateScore = normalize(metrics.winRate, Math.min(...winRates), Math.max(...winRates));
-  const consistencyScore = metrics.consistency * 100; // Already 0-1, scale to 0-100
-  const volumeScore = normalize(
-    Math.log(metrics.totalVolume + 1), // Log scale for volume
-    Math.log(Math.min(...volumes) + 1),
-    Math.log(Math.max(...volumes) + 1),
-  );
-  const recencyScore = calculateRecencyScore(metrics.lastActiveAt);
+    // Normalize individual scores
+    const roiScore = normalize(metrics.roi, Math.min(...rois), Math.max(...rois));
+    const winRateScore = normalize(metrics.winRate, Math.min(...winRates), Math.max(...winRates));
+    const consistencyScore = metrics.consistency * 100; // Already 0-1, scale to 0-100
+    const volumeScore = normalize(
+      Math.log(metrics.totalVolume + 1), // Log scale for volume
+      Math.log(Math.min(...volumes) + 1),
+      Math.log(Math.max(...volumes) + 1),
+    );
+    const recencyScore = yield* calculateRecencyScore(metrics.lastActiveAt);
 
-  // Calculate weighted composite score
-  const compositeScore =
-    roiScore * weights.roi +
-    winRateScore * weights.winRate +
-    consistencyScore * weights.consistency +
-    volumeScore * weights.volume +
-    recencyScore * weights.recentActivity;
+    // Calculate weighted composite score
+    const compositeScore =
+      roiScore * weights.roi +
+      winRateScore * weights.winRate +
+      consistencyScore * weights.consistency +
+      volumeScore * weights.volume +
+      recencyScore * weights.recentActivity;
 
-  return {
-    trader,
-    compositeScore,
-    scores: {
-      roi: roiScore,
-      winRate: winRateScore,
-      consistency: consistencyScore,
-      volume: volumeScore,
-      recentActivity: recencyScore,
-    },
-  };
-};
+    return {
+      trader,
+      compositeScore,
+      scores: {
+        roi: roiScore,
+        winRate: winRateScore,
+        consistency: consistencyScore,
+        volume: volumeScore,
+        recentActivity: recencyScore,
+      },
+    };
+  });
 
 /**
  * Find the best traders to copy based on leaderboard data and detailed analysis
@@ -208,35 +216,32 @@ export const findBestTraders = (
     // Fetch details for each trader, filtering out those with insufficient data
     const tradersWithDetails = yield* Effect.forEach(
       entries,
-      (entry) =>
-        fetchTraderDetails(entry).pipe(
-          Effect.map((trader) => Option.some(trader)),
-          Effect.catchTag("InsufficientDataError", () => {
-            // Log the skip for visibility
-            return Effect.succeed(Option.none<Trader>());
-          }),
-        ),
-      { concurrency: 5 }, // Limit concurrent requests
+      flow(
+        fetchTraderDetails,
+        Effect.map(Option.some),
+        Effect.catchTag("InsufficientDataError", () => Effect.succeed(Option.none<Trader>())),
+      ),
+      { concurrency: 5 },
     );
 
-    // Filter out None values
-    const traders = Arr.filterMap(tradersWithDetails, (opt) => opt);
+    const traders = Array.getSomes(tradersWithDetails);
 
-    if (traders.length === 0) {
-      return [];
-    }
+    if (!Array.isNonEmptyReadonlyArray(traders)) return [];
 
     // Calculate scores for all traders
     const allMetrics = traders.map((t) => t.metrics);
-    const scoredTraders = traders.map((t) => calculateScores(t, allMetrics, weights));
-
-    // Sort by composite score descending and take top N
-    const sorted = Arr.sort(
-      scoredTraders,
-      Order.reverse(Order.mapInput(Order.number, (st: ScoredTrader) => st.compositeScore)),
+    const scoredTraders = yield* Effect.forEach(traders, (t) =>
+      calculateScores(t, allMetrics, weights),
     );
 
-    return Arr.take(sorted, maxTraders);
+    // Sort by composite score descending and take top N
+    const sorted = Array.sortWith(
+      scoredTraders,
+      (st) => st.compositeScore,
+      Order.reverse(Order.number),
+    );
+
+    return Array.take(sorted, maxTraders);
   });
 
 /**
@@ -257,27 +262,30 @@ export const analyzeTrader = (
     });
 
     if (positions.length < MIN_TRADES) {
-      return yield* Effect.fail(
-        new InsufficientDataError({
-          traderId,
-          reason: "Not enough trades",
-          actual: positions.length,
-          required: MIN_TRADES,
-        }),
-      );
+      return yield* new InsufficientDataError({
+        traderId,
+        reason: "Not enough trades",
+        actual: positions.length,
+        required: MIN_TRADES,
+      });
     }
 
-    const lastActiveAt =
-      positions.length > 0
-        ? new Date(Math.max(...positions.map((p) => p.closedAt.getTime())))
-        : new Date();
+    const lastActiveAt = yield* Array.match(positions, {
+      onEmpty: () => DateTime.nowAsDate,
+      onNonEmpty: (nonEmptyPositions) =>
+        pipe(
+          nonEmptyPositions,
+          Array.map((p) => p.closedAt),
+          Array.max(Order.Date),
+          Effect.succeed,
+        ),
+    });
 
     const metrics = MetricsCalculator.calculateMetrics(positions, lastActiveAt);
 
     const trader: Trader = {
       id: traderId,
       username: Option.none(),
-      profileImage: Option.none(),
       metrics,
     };
 

@@ -1,5 +1,5 @@
-import { Percentage, USDAmount } from "../shared/types";
 import type { ClosedPosition } from "../position/ClosedPosition";
+import { Percentage, USDAmount } from "../shared/types";
 import type { TraderMetrics } from "./TraderMetrics";
 
 /**
@@ -53,9 +53,7 @@ export const calculateConsistency = (positions: ReadonlyArray<ClosedPosition>): 
     .filter((pos) => pos.totalBought > 0)
     .map((pos) => pos.realizedPnl / pos.totalBought);
 
-  if (positionROIs.length < 2) {
-    return 1;
-  }
+  if (positionROIs.length < 2) return 1;
 
   // Calculate mean ROI
   const meanROI = positionROIs.reduce((sum, roi) => sum + roi, 0) / positionROIs.length;

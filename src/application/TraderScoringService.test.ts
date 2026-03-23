@@ -29,7 +29,7 @@ const makeClosedPosition = (
     realizedPnl: number;
     totalBought: number;
     closedAt: Date;
-  }> = {}
+  }> = {},
 ): ClosedPosition => ({
   conditionId: makeConditionId(overrides.conditionId ?? "condition-1"),
   title: overrides.title ?? "Test Market",
@@ -50,7 +50,7 @@ const makeLeaderboardEntry = (
     username: string | null;
     volume: number;
     pnl: number;
-  }> = {}
+  }> = {},
 ): LeaderboardEntry => ({
   rank: overrides.rank ?? 1,
   traderId: makeTraderId(overrides.traderId ?? "trader-1"),
@@ -65,7 +65,7 @@ const makePositions = (
   winRate: number = 0.7,
   avgPnl: number = 10,
   avgVolume: number = 100,
-  baseDate: Date = new Date("2026-03-20")
+  baseDate: Date = new Date("2026-03-20"),
 ): ReadonlyArray<ClosedPosition> =>
   Array.from({ length: count }, (_, i) => {
     const isWin = i < count * winRate;
@@ -82,29 +82,25 @@ const makePositions = (
 // Mock Repositories
 // =============================================================================
 
-const makeTestLeaderboardRepository = (
-  entries: ReadonlyArray<LeaderboardEntry>
-) =>
+const makeTestLeaderboardRepository = (entries: ReadonlyArray<LeaderboardEntry>) =>
   Layer.succeed(LeaderboardRepository, {
     getLeaderboard: () => Effect.succeed(entries),
   });
 
 const makeTestTraderRepository = (
-  positionsByTrader: Record<string, ReadonlyArray<ClosedPosition>>
+  positionsByTrader: Record<string, ReadonlyArray<ClosedPosition>>,
 ) =>
   Layer.succeed(TraderRepository, {
-    getClosedPositions: (traderId) =>
-      Effect.succeed(positionsByTrader[traderId] ?? []),
+    getClosedPositions: (traderId) => Effect.succeed(positionsByTrader[traderId] ?? []),
     getActivity: () => Effect.succeed([]),
-    getTotalMarketsTraded: (traderId) =>
-      Effect.succeed(positionsByTrader[traderId]?.length ?? 0),
+    getTotalMarketsTraded: (traderId) => Effect.succeed(positionsByTrader[traderId]?.length ?? 0),
   });
 
 const runWithTestClock = <A, E>(
   effect: Effect.Effect<A, E, LeaderboardRepository | TraderRepository>,
   leaderboardEntries: ReadonlyArray<LeaderboardEntry>,
   positionsByTrader: Record<string, ReadonlyArray<ClosedPosition>>,
-  currentTime: Date = new Date("2026-03-22")
+  currentTime: Date = new Date("2026-03-22"),
 ) =>
   Effect.gen(function* () {
     yield* TestClock.setTime(currentTime.getTime());
@@ -113,7 +109,7 @@ const runWithTestClock = <A, E>(
     Effect.provide(makeTestLeaderboardRepository(leaderboardEntries)),
     Effect.provide(makeTestTraderRepository(positionsByTrader)),
     Effect.provide(TestContext.TestContext),
-    Effect.runPromise
+    Effect.runPromise,
   );
 
 // =============================================================================
@@ -128,11 +124,7 @@ describe("TraderScoringService", () => {
         "trader-1": makePositions(5), // Less than MIN_TRADES (10)
       };
 
-      const result = await runWithTestClock(
-        findBestTraders(),
-        entries,
-        positionsByTrader
-      );
+      const result = await runWithTestClock(findBestTraders(), entries, positionsByTrader);
 
       expect(result).toEqual([]);
     });
@@ -147,32 +139,26 @@ describe("TraderScoringService", () => {
         "trader-2": makePositions(15, 0.5, 5, 100), // Lower win rate, lower PnL
       };
 
-      const result = await runWithTestClock(
-        findBestTraders(),
-        entries,
-        positionsByTrader
-      );
+      const result = await runWithTestClock(findBestTraders(), entries, positionsByTrader);
 
       expect(result).toHaveLength(2);
       expect(result[0]?.trader.id).toBe("trader-1");
       expect(result[1]?.trader.id).toBe("trader-2");
-      expect(result[0]?.compositeScore).toBeGreaterThan(
-        result[1]?.compositeScore ?? 0
-      );
+      expect(result[0]?.compositeScore).toBeGreaterThan(result[1]?.compositeScore ?? 0);
     });
 
     it("should respect maxTraders limit", async () => {
       const entries = Array.from({ length: 5 }, (_, i) =>
-        makeLeaderboardEntry({ traderId: `trader-${i}`, rank: i + 1 })
+        makeLeaderboardEntry({ traderId: `trader-${i}`, rank: i + 1 }),
       );
       const positionsByTrader = Object.fromEntries(
-        entries.map((e) => [e.traderId, makePositions(15)])
+        entries.map((e) => [e.traderId, makePositions(15)]),
       );
 
       const result = await runWithTestClock(
         findBestTraders({}, defaultWeights, 3),
         entries,
-        positionsByTrader
+        positionsByTrader,
       );
 
       expect(result).toHaveLength(3);
@@ -188,11 +174,7 @@ describe("TraderScoringService", () => {
         "trader-2": makePositions(15, 0.7, 10, 5), // Low volume (5 * 15 = 75 < 100)
       };
 
-      const result = await runWithTestClock(
-        findBestTraders(),
-        entries,
-        positionsByTrader
-      );
+      const result = await runWithTestClock(findBestTraders(), entries, positionsByTrader);
 
       expect(result).toHaveLength(1);
       expect(result[0]?.trader.id).toBe("trader-1");
@@ -204,11 +186,7 @@ describe("TraderScoringService", () => {
         "trader-1": makePositions(15, 1.0, 10, 100), // 100% win rate
       };
 
-      const result = await runWithTestClock(
-        findBestTraders(),
-        entries,
-        positionsByTrader
-      );
+      const result = await runWithTestClock(findBestTraders(), entries, positionsByTrader);
 
       expect(result).toHaveLength(1);
       const scores = result[0]?.scores;
@@ -243,7 +221,7 @@ describe("TraderScoringService", () => {
       const result = await runWithTestClock(
         findBestTraders({}, winRateFocusedWeights),
         entries,
-        positionsByTrader
+        positionsByTrader,
       );
 
       expect(result[0]?.trader.id).toBe("trader-1"); // Higher win rate should win
@@ -260,19 +238,12 @@ describe("TraderScoringService", () => {
         old: makePositions(15, 0.7, 10, 100, new Date("2026-02-01")), // 49 days ago
       };
 
-      const result = await runWithTestClock(
-        findBestTraders(),
-        entries,
-        positionsByTrader,
-        now
-      );
+      const result = await runWithTestClock(findBestTraders(), entries, positionsByTrader, now);
 
       const recentTrader = result.find((t) => t.trader.id === "recent");
       const oldTrader = result.find((t) => t.trader.id === "old");
 
-      expect(recentTrader!.scores.recentActivity).toBeGreaterThan(
-        oldTrader!.scores.recentActivity
-      );
+      expect(recentTrader!.scores.recentActivity).toBeGreaterThan(oldTrader!.scores.recentActivity);
     });
   });
 
@@ -285,7 +256,7 @@ describe("TraderScoringService", () => {
       const result = await analyzeTrader(traderId).pipe(
         Effect.provide(makeTestTraderRepository(positionsByTrader)),
         Effect.provide(TestContext.TestContext),
-        Effect.runPromise
+        Effect.runPromise,
       );
 
       expect(result.trader.id).toBe(traderId);
@@ -301,7 +272,7 @@ describe("TraderScoringService", () => {
         Effect.provide(makeTestTraderRepository(positionsByTrader)),
         Effect.provide(TestContext.TestContext),
         Effect.flip,
-        Effect.runPromise
+        Effect.runPromise,
       );
 
       expect(result._tag).toBe("InsufficientDataError");
@@ -320,14 +291,14 @@ describe("TraderScoringService", () => {
           conditionId: `c-${i}`,
           totalBought: 100,
           realizedPnl: 10,
-        })
+        }),
       );
       const positionsByTrader = { "trader-1": positions };
 
       const result = await analyzeTrader(traderId).pipe(
         Effect.provide(makeTestTraderRepository(positionsByTrader)),
         Effect.provide(TestContext.TestContext),
-        Effect.runPromise
+        Effect.runPromise,
       );
 
       expect(result.trader.metrics.roi).toBe(10); // 10% ROI
@@ -340,14 +311,14 @@ describe("TraderScoringService", () => {
         makeClosedPosition({
           conditionId: `c-${i}`,
           realizedPnl: i < 7 ? 10 : -5,
-        })
+        }),
       );
       const positionsByTrader = { "trader-1": positions };
 
       const result = await analyzeTrader(traderId).pipe(
         Effect.provide(makeTestTraderRepository(positionsByTrader)),
         Effect.provide(TestContext.TestContext),
-        Effect.runPromise
+        Effect.runPromise,
       );
 
       expect(result.trader.metrics.winRate).toBe(70); // 70% win rate

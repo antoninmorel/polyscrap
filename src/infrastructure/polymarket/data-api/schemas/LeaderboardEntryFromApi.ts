@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { LeaderboardEntry } from "../../../../domain/leaderboard/LeaderboardEntry";
-import { TraderId } from "../../../../domain/trader/TraderId";
 import { USDAmount } from "../../../../domain/shared/types";
+import { TraderId } from "../../../../domain/trader/TraderId";
 
 // API response shape from Polymarket Data API /v1/leaderboard
 const LeaderboardEntryApi = Schema.Struct({
@@ -12,7 +12,6 @@ const LeaderboardEntryApi = Schema.Struct({
   verifiedBadge: Schema.Boolean,
   vol: Schema.Number,
   pnl: Schema.Number,
-  profileImage: Schema.String,
 });
 
 export const LeaderboardEntryFromApi = Schema.transform(LeaderboardEntryApi, LeaderboardEntry, {
@@ -23,7 +22,6 @@ export const LeaderboardEntryFromApi = Schema.transform(LeaderboardEntryApi, Lea
     username: api.userName || null,
     volume: USDAmount.make(api.vol),
     pnl: USDAmount.make(api.pnl),
-    profileImage: api.profileImage || null,
     verifiedBadge: api.verifiedBadge,
   }),
   encode: (domain) => ({
@@ -34,7 +32,6 @@ export const LeaderboardEntryFromApi = Schema.transform(LeaderboardEntryApi, Lea
     verifiedBadge: domain.verifiedBadge ?? false,
     vol: domain.volume,
     pnl: domain.pnl,
-    profileImage: domain.profileImage ?? "",
   }),
 });
 

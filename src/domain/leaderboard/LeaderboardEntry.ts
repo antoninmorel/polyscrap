@@ -8,7 +8,6 @@ export const LeaderboardEntry = Schema.Struct({
   username: Schema.OptionFromNullOr(Schema.String),
   volume: USDAmount,
   pnl: USDAmount,
-  profileImage: Schema.OptionFromNullOr(Schema.String),
   verifiedBadge: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 });
 
