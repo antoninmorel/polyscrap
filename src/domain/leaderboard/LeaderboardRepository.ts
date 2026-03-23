@@ -1,4 +1,4 @@
-import { Context, Effect } from "effect";
+import { Context, Effect, Option } from "effect";
 import type { LeaderboardCategory, LeaderboardOrderBy, TimePeriod } from "./types";
 import type { LeaderboardEntry } from "./LeaderboardEntry";
 import type { LeaderboardRepositoryError } from "./errors";
@@ -15,6 +15,10 @@ export interface LeaderboardRepository {
   readonly getLeaderboard: (
     options?: LeaderboardQueryOptions,
   ) => Effect.Effect<ReadonlyArray<LeaderboardEntry>, LeaderboardRepositoryError>;
+
+  readonly findByUsername: (
+    username: string,
+  ) => Effect.Effect<Option.Option<LeaderboardEntry>, LeaderboardRepositoryError>;
 }
 
 export const LeaderboardRepository =

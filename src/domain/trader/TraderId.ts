@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { EthWalletAddress } from "../shared/EthWalletAddress";
 
-export const TraderId = Schema.String.pipe(Schema.brand("TraderId"));
+export const TraderId = EthWalletAddress;
 export type TraderId = typeof TraderId.Type;

@@ -1,5 +1,5 @@
 import { FetchHttpClient, HttpClient } from "@effect/platform";
-import { Cache, Data, Effect, Layer, Schema } from "effect";
+import { Array, Cache, Data, Effect, Layer, Option, Schema } from "effect";
 import type { LeaderboardEntry } from "../../../domain/leaderboard/LeaderboardEntry";
 import {
   LeaderboardRepository,
@@ -7,8 +7,8 @@ import {
 } from "../../../domain/leaderboard/LeaderboardRepository";
 import { LeaderboardRepositoryError } from "../../../domain/leaderboard/errors";
 import { DataApiConfig, DataApiConfigLive } from "./DataApiConfig";
-import { LeaderboardApiResponse } from "./schemas/LeaderboardEntryFromApi";
 import { buildUrl } from "./buildUrl";
+import { LeaderboardApiResponse } from "./schemas/LeaderboardEntryFromApi";
 
 // Cache key using Data.case for proper structural equality
 const LeaderboardCacheKey = Data.case<{
@@ -64,7 +64,29 @@ const make = Effect.gen(function* () {
       }),
     );
 
-  return LeaderboardRepository.of({ getLeaderboard });
+  const findByUsername = (
+    username: string,
+  ): Effect.Effect<Option.Option<LeaderboardEntry>, LeaderboardRepositoryError> =>
+    Effect.gen(function* () {
+      const normalizedUsername = username.toLowerCase();
+
+      const found = yield* getLeaderboard({
+        timePeriod: "ALL",
+        limit: 500,
+      }).pipe(
+        Effect.map(
+          Array.findFirst(
+            (entry) =>
+              Option.isSome(entry.username) &&
+              entry.username.value.toLowerCase() === normalizedUsername,
+          ),
+        ),
+      );
+
+      return found;
+    });
+
+  return LeaderboardRepository.of({ getLeaderboard, findByUsername });
 });
 
 export const PolymarketLeaderboardRepositoryLive = Layer.effect(LeaderboardRepository, make).pipe(
