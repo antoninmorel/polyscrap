@@ -1,7 +1,5 @@
 # Polyscrap
 
-A Polymarket trader analysis tool that identifies the best traders to copy-trade based on their historical performance.
-
 ## Installation
 
 ```bash
