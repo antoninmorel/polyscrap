@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "find-traders": "npx tsx src/presentation/findBestTraders.ts",
+    "assess-trader": "npx tsx src/presentation/assessCopyTrader.ts",
     "lint": "oxlint",
     "format": "oxfmt"
   },
