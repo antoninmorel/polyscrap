@@ -18,3 +18,8 @@ export class InsufficientDataError extends Data.TaggedError("InsufficientDataErr
   readonly actual: number;
   readonly required: number;
 }> {}
+
+export class TraderNotFoundError extends Data.TaggedError("TraderNotFoundError")<{
+  readonly identifier: string;
+  readonly identifierType: "username" | "traderId";
+}> {}
