@@ -13,7 +13,7 @@ import { DataApiConfig, DataApiConfigLive } from "./DataApiConfig";
 import { ActivityApiResponse } from "./schemas/ActivityFromApi";
 import { ClosedPositionApiResponse } from "./schemas/ClosedPositionFromApi";
 import { TradedApiResponse } from "./schemas/TradedFromApi";
-import { buildUrl } from "./utils";
+import { buildUrl } from "./buildUrl";
 
 // Cache keys using Data.case for proper structural equality
 const ClosedPositionsCacheKey = Data.case<{

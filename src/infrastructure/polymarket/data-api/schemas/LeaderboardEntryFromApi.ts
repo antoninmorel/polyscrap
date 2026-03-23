@@ -15,32 +15,28 @@ const LeaderboardEntryApi = Schema.Struct({
   profileImage: Schema.String,
 });
 
-export const LeaderboardEntryFromApi = Schema.transform(
-  LeaderboardEntryApi,
-  LeaderboardEntry,
-  {
-    strict: true,
-    decode: (api) => ({
-      rank: api.rank,
-      traderId: api.proxyWallet as TraderId,
-      username: api.userName || null,
-      volume: api.vol as USDAmount,
-      pnl: api.pnl as USDAmount,
-      profileImage: api.profileImage || null,
-      verifiedBadge: api.verifiedBadge,
-    }),
-    encode: (domain) => ({
-      rank: String(domain.rank),
-      proxyWallet: domain.traderId,
-      userName: domain.username ?? "",
-      xUsername: null,
-      verifiedBadge: domain.verifiedBadge ?? false,
-      vol: domain.volume,
-      pnl: domain.pnl,
-      profileImage: domain.profileImage ?? "",
-    }),
-  }
-);
+export const LeaderboardEntryFromApi = Schema.transform(LeaderboardEntryApi, LeaderboardEntry, {
+  strict: true,
+  decode: (api) => ({
+    rank: api.rank,
+    traderId: TraderId.make(api.proxyWallet),
+    username: api.userName || null,
+    volume: USDAmount.make(api.vol),
+    pnl: USDAmount.make(api.pnl),
+    profileImage: api.profileImage || null,
+    verifiedBadge: api.verifiedBadge,
+  }),
+  encode: (domain) => ({
+    rank: String(domain.rank),
+    proxyWallet: domain.traderId,
+    userName: domain.username ?? "",
+    xUsername: null,
+    verifiedBadge: domain.verifiedBadge ?? false,
+    vol: domain.volume,
+    pnl: domain.pnl,
+    profileImage: domain.profileImage ?? "",
+  }),
+});
 
 export const LeaderboardApiResponse = Schema.Array(LeaderboardEntryFromApi);
 export type LeaderboardApiResponse = typeof LeaderboardApiResponse.Type;

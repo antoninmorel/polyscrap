@@ -211,7 +211,7 @@ export const findBestTraders = (
       (entry) =>
         fetchTraderDetails(entry).pipe(
           Effect.map((trader) => Option.some(trader)),
-          Effect.catchTag("InsufficientDataError", (err) => {
+          Effect.catchTag("InsufficientDataError", () => {
             // Log the skip for visibility
             return Effect.succeed(Option.none<Trader>());
           }),
